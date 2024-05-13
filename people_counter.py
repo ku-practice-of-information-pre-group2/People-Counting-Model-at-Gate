@@ -50,16 +50,16 @@ def send_mail():
 	# function to send the email alerts
 	Mailer().send(config["Email_Receive"])
 
-def log_data(move_in, in_time, move_out, out_time):
+def log_data(move_in, in_time, move_out, out_time, total):
 	# function to log the counting data
-	data = [move_in, in_time, move_out, out_time]
+	data = [move_in, in_time, move_out, out_time, total]
 	# transpose the data to align the columns properly
 	export_data = zip_longest(*data, fillvalue = '')
 
 	with open('utils/data/logs/counting_data.csv', 'w', newline = '') as myfile:
 		wr = csv.writer(myfile, quoting = csv.QUOTE_ALL)
 		if myfile.tell() == 0: # check if header rows are already existing
-			wr.writerow(("Move In", "In Time", "Move Out", "Out Time"))
+			wr.writerow(("Move In", "In Time", "Move Out", "Out Time", "Total People Inside"))
 			wr.writerows(export_data)
 
 def people_counter():
@@ -111,6 +111,8 @@ def people_counter():
 	move_in =[]
 	out_time = []
 	in_time = []
+	sumtotal = []
+	
 
 	# start the frames per second throughput estimator
 	fps = FPS().start()
@@ -264,6 +266,7 @@ def people_counter():
 						move_out.append(totalUp)
 						out_time.append(date_time)
 						to.counted = True
+						sumtotal.append(len(move_in) - len(move_out))
 
 					# if the direction is positive (indicating the object
 					# is moving down) AND the centroid is below the
@@ -284,9 +287,11 @@ def people_counter():
 								email_thread.start()
 								logger.info("Alert sent!")
 						to.counted = True
-						# compute the sum of total people inside
-						total = []
-						total.append(len(move_in) - len(move_out))
+						sumtotal.append(len(move_in) - len(move_out))
+					# compute the sum of total people inside
+					total = []
+					total.append(len(move_in) - len(move_out))
+					
 
 			# store the trackable object in our dictionary
 			trackableObjects[objectID] = to
@@ -320,7 +325,7 @@ def people_counter():
 
 		# initiate a simple log to save the counting data
 		if config["Log"]:
-			log_data(move_in, in_time, move_out, out_time)
+			log_data(move_in, in_time, move_out, out_time, sumtotal)
 
 		# check to see if we should write the frame to disk
 		if writer is not None:
