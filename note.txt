@@ -1,0 +1,5 @@
+http通信，传送video
+csv json 
+自动化 server 
+web camera
+解决camera录像和程序的通信问题
