@@ -17,6 +17,7 @@ import dlib
 import json
 import csv
 import cv2
+import requests
 
 # execution start time
 start_time = time.time()
@@ -55,12 +56,32 @@ def log_data(move_in, in_time, move_out, out_time, total):
 	data = [move_in, in_time, move_out, out_time, total]
 	# transpose the data to align the columns properly
 	export_data = zip_longest(*data, fillvalue = '')
+	totalnum = 0 if len(total) == 0 else total[-1]
+	requests.post(url = 'https://shockdawnbackend.onrender.com/real_data/incafe', json={"timestamp":str(datetime.datetime.now().isoformat()),"num_in_cafeteria": totalnum})
 
 	with open('utils/data/logs/counting_data.csv', 'w', newline = '') as myfile:
 		wr = csv.writer(myfile, quoting = csv.QUOTE_ALL)
 		if myfile.tell() == 0: # check if header rows are already existing
 			wr.writerow(("Move In", "In Time", "Move Out", "Out Time", "Total People Inside"))
 			wr.writerows(export_data)
+
+
+def center_zoom(frame, zoom_factor=2):
+    # 元のフレームのサイズ
+    height, width = frame.shape[:2]
+    # 拡大後のフレームのサイズを計算
+    new_width = int(width * zoom_factor)
+    new_height = int(height * zoom_factor)
+    # 拡大後のフレームを作成
+    zoomed_frame = np.zeros((new_height, new_width, 3), dtype=np.uint8)
+    # 元のフレームを拡大後のフレームの中央に配置
+    start_x = (new_width - width) // 2
+    start_y = (new_height - height) // 2
+    zoomed_frame[start_y:start_y + height, start_x:start_x + width] = frame
+    # フレームを縮小して元のサイズに戻す
+    zoomed_frame_resized = cv2.resize(zoomed_frame, (width, height), interpolation=cv2.INTER_LINEAR)
+    cv2.imshow("aaa", zoomed_frame_resized)
+    return zoomed_frame_resized
 
 def people_counter():
 	# main function for people_counter.py
@@ -126,6 +147,7 @@ def people_counter():
 		# VideoCapture or VideoStream
 		frame = vs.read()
 		frame = frame[1] if args.get("input", False) else frame
+		frame = center_zoom(frame, 5)
 
 		# if we are viewing a video and we did not grab a frame then we
 		# have reached the end of the video
@@ -135,7 +157,9 @@ def people_counter():
 		# resize the frame to have a maximum width of 500 pixels (the
 		# less data we have, the faster we can process it), then convert
 		# the frame from BGR to RGB for dlib
+		
 		frame = imutils.resize(frame, width = 500)
+		 
 		rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
 		# if the frame dimensions are empty, set them
@@ -361,6 +385,7 @@ def people_counter():
 
 	# close any open windows
 	cv2.destroyAllWindows()
+	return sumtotal[-1]
 
 # initiate the scheduler
 if config["Scheduler"]:
@@ -369,4 +394,17 @@ if config["Scheduler"]:
 	while True:
 		schedule.run_pending()
 else:
-	people_counter()
+	sumtotal = people_counter()
+
+
+	export_data = [
+    	{ "Total People Inside": sumtotal}
+    # 添加更多数据行...
+	]
+
+	# 指定要保存的JSON文件路径
+	json_file = 'utils/data/logs/counting_data.json'
+
+	# 将数据写入JSON文件
+	with open(json_file, 'w') as f:
+		json.dump(export_data, f, indent=4)
