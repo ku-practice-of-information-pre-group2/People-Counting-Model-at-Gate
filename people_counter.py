@@ -19,6 +19,7 @@ import csv
 import cv2
 import requests
 
+
 # execution start time
 start_time = time.time()
 # setup logger
@@ -73,14 +74,11 @@ def center_zoom(frame, zoom_factor=2):
     new_width = int(width * zoom_factor)
     new_height = int(height * zoom_factor)
     # 拡大後のフレームを作成
-    zoomed_frame = np.zeros((new_height, new_width, 3), dtype=np.uint8)
-    # 元のフレームを拡大後のフレームの中央に配置
+    zoomed_frame = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
+    # 中央を中心に元のサイズに切り取る
     start_x = (new_width - width) // 2
     start_y = (new_height - height) // 2
-    zoomed_frame[start_y:start_y + height, start_x:start_x + width] = frame
-    # フレームを縮小して元のサイズに戻す
-    zoomed_frame_resized = cv2.resize(zoomed_frame, (width, height), interpolation=cv2.INTER_LINEAR)
-    cv2.imshow("aaa", zoomed_frame_resized)
+    zoomed_frame_resized = zoomed_frame[start_y:start_y + height, start_x:start_x + width]
     return zoomed_frame_resized
 
 def people_counter():
@@ -98,13 +96,15 @@ def people_counter():
 	# if a video path was not supplied, grab a reference to the ip camera
 	if not args.get("input", False):
 		logger.info("Starting the live stream..")
-		vs = VideoStream(config["url"]).start()
+		cap = cv2.VideoCapture(1)#iphone camera
+		#vs = VideoStream(config["url"]).start()
 		time.sleep(2.0)
 
 	# otherwise, grab a reference to the video file
 	else:
 		logger.info("Starting the video..")
-		vs = cv2.VideoCapture(args["input"])
+		cap = cv2.VideoCapture(1)#iphone
+		#vs = cv2.VideoCapture(args["input"])
 
 	# initialize the video writer (we'll instantiate later if need be)
 	writer = None
@@ -133,7 +133,6 @@ def people_counter():
 	out_time = []
 	in_time = []
 	sumtotal = []
-	
 
 	# start the frames per second throughput estimator
 	fps = FPS().start()
@@ -145,9 +144,12 @@ def people_counter():
 	while True:
 		# grab the next frame and handle if we are reading from either
 		# VideoCapture or VideoStream
-		frame = vs.read()
-		frame = frame[1] if args.get("input", False) else frame
-		frame = center_zoom(frame, 5)
+
+		frame = cap.read()
+		#frame = vs.read()
+		frame = frame[1] #if args.get("input", False) else frame
+		frame = center_zoom(frame,1)
+		
 
 		# if we are viewing a video and we did not grab a frame then we
 		# have reached the end of the video
@@ -200,7 +202,7 @@ def people_counter():
 
 				# filter out weak detections by requiring a minimum
 				# confidence
-				if confidence > args["confidence"]:
+				if confidence > args["confidence"] - 0.1:
 					# extract the index of the class label from the
 					# detections list
 					idx = int(detections[0, 0, i, 1])
@@ -356,7 +358,8 @@ def people_counter():
 			writer.write(frame)
 
 		# show the output frame
-		cv2.imshow("Real-Time Monitoring/Analysis Window", frame)
+		#cv2.imshow("Real-Time Monitoring/Analysis Window", frame)
+		cv2.imshow('iPhone Webcam',frame)
 		key = cv2.waitKey(1) & 0xFF
 		# if the `q` key was pressed, break from the loop
 		if key == ord("q"):
